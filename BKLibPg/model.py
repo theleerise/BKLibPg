@@ -59,6 +59,10 @@ class Model:
     def to_json(self, **kwargs):
         return json.dumps(self.to_dict(), **kwargs)
 
+    def to_pydantic(self):
+        PydanticCls = self.__class__.pydantic_definition_model()
+        return PydanticCls(**self.to_dict())
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(**data)
@@ -67,9 +71,14 @@ class Model:
     def from_json(cls, json_str: str):
         data = json.loads(json_str)
         return cls.from_dict(data)
-    
+
     @classmethod
-    def to_pydantic_model(cls, name=None) -> Type[PydanticBaseModel]:
+    def from_pydantic(cls, pyd_obj: PydanticBaseModel):
+        data = pyd_obj.dict(by_alias=True)
+        return cls.from_dict(data)
+
+    @classmethod
+    def pydantic_definition_model(cls, name=None) -> Type[PydanticBaseModel]:
         name = name or f"P_{cls.__name__}"
         annotations = {}
         field_defs = {}
