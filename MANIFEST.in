@@ -1,0 +1,15 @@
+# Incluir archivos comunes
+include README.md
+include LICENSE
+include requirements.txt
+
+# Incluir todos los archivos Python en los directorios
+recursive-include BKLibPg *.py
+recursive-include BKLibPg *.txt
+recursive-include BKLibPg *.ini
+recursive-include BKLibPg *.cfg
+
+# Excluir archivos temporales o de compilación
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__/
