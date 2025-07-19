@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List, Type, Optional
-from BKLibPg.manager.manager_base import ManagerBase
-from BKLibPg.model import Model
 from psycopg.rows import dict_row
+from BKLibPg.manager.manager_base import ManagerBase
+from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_query
+from BKLibPg.model import Model
 
 
 class ManagerCrudBase(ManagerBase, ABC):
@@ -104,51 +105,80 @@ class ManagerCrudBase(ManagerBase, ABC):
     ######################### CRUD públicos ######################### 
     #################################################################
 
-    def getlist(self, filters: dict = None) -> List[Model]:
+    def getlist(self, filters: List[dict] = None, params: List[dict] = None) -> List[Model]:
         """
-        Devuelve una lista de modelos a partir de un SELECT sin paginación.
+        Devuelve una lista de modelos aplicando filtros dinámicos.
 
         Parámetros:
-            filters: diccionario de filtros a aplicar (como parámetros SQL).
+            filters: lista de definiciones de filtro (columna, operador, función).
+            params: lista de diccionarios con valores para los filtros.
 
         Retorna:
-            Lista de instancias del modelo de salida.
+            Lista de modelos.
         """
-        rows = self.fetch_all(self._get_sql_query(), filters)
+        sql_base = wrapper_where_query(self._get_sql_query())
+        if filters and params:
+            qb = QueryBuilder(sql_base, filters, params)
+            final_sql, bind_params = qb.build()
+        else:
+            final_sql = sql_base
+            bind_params = {}
+
+        rows = self.fetch_all(final_sql, bind_params)
         return [self.output_model.from_dict(r) for r in rows]
 
-    def getlist_paginated(self, filters: dict = None, limit: int = 10, offset: int = 0) -> List[Model]:
+    def getlist_paginated(
+        self,
+        filters: List[dict] = None,
+        params: List[dict] = None,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[Model]:
         """
-        Devuelve una lista paginada de modelos.
-
+        Devuelve una lista paginada de modelos aplicando filtros dinámicos.
+    
         Parámetros:
-            filters: filtros adicionales como parámetros SQL.
-            limit: número máximo de registros a devolver.
-            offset: desplazamiento desde el inicio.
-
+            filters: lista de definiciones de filtro.
+            params: lista de diccionarios con valores de filtro.
+            limit: máximo de filas por página.
+            offset: desplazamiento de filas.
+    
         Retorna:
-            Lista de modelos correspondientes a la página solicitada.
+            Lista de modelos.
         """
-        sql = f"{self._get_sql_query()} LIMIT %(limit)s OFFSET %(offset)s"
-        params = filters or {}
-        params.update({"limit": limit, "offset": offset})
-        rows = self.fetch_all(sql, params)
+        sql_base = wrapper_where_query(self._get_sql_query())
+        if filters and params:
+            qb = QueryBuilder(sql_base, filters, params)
+            sql_with_filters, bind_params = qb.build()
+        else:
+            sql_with_filters = sql_base
+            bind_params = {}
+    
+        paginated_sql = range_row_query(sql_with_filters, offset=offset, limit=limit)
+        rows = self.fetch_all(paginated_sql, bind_params)
         return [self.output_model.from_dict(r) for r in rows]
 
-    def getlist_page(self, page: int = 1, page_size: int = 10, filters: dict = None) -> List[Model]:
+    def getlist_page(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        filters: List[dict] = None,
+        params: List[dict] = None
+    ) -> List[Model]:
         """
-        Devuelve una lista de modelos basada en número de página.
+        Devuelve una lista paginada por número de página y tamaño, con filtros dinámicos.
 
         Parámetros:
-            page: número de página (desde 1).
+            page: número de página (1-indexado).
             page_size: cantidad de registros por página.
-            filters: filtros adicionales.
+            filters: lista de definiciones de filtro.
+            params: valores de los filtros.
 
         Retorna:
-            Lista de modelos en la página especificada.
+            Lista de modelos en la página solicitada.
         """
         offset = (page - 1) * page_size
-        return self.getlist_paginated(filters, limit=page_size, offset=offset)
+        return self.getlist_paginated(filters=filters, params=params, limit=page_size, offset=offset)
 
     def before_insert(self, model_obj: Model) -> Model:
         """
