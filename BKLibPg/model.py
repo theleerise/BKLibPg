@@ -1,38 +1,10 @@
 from typing import Type
-from datetime import date, datetime, time
-from uuid import UUID
 import json
 from pydantic import create_model
 from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
-from pydantic import Json
+from BKLibPg.config import Config
 
-from BKLibPg.data_types import (
-    StringType,
-    IntegerType,
-    FloatType,
-    BooleanType,
-    DateType,
-    DateTimeType,
-    TimeType,
-    BinaryType,
-    Base64Type,
-    JsonType,
-    UUIDType,
-)
-
-PYDANTIC_TYPE_MAP = {
-    StringType: str,
-    IntegerType: int,
-    FloatType: float,
-    BooleanType: bool,
-    DateType: date,
-    DateTimeType: datetime,
-    TimeType: time,
-    BinaryType: bytes,
-    Base64Type: str,     # Pydantic no tiene un tipo base64 como tal; se usa `str`
-    JsonType: Json,      # Usa el validador `Json` de Pydantic
-    UUIDType: UUID,
-}
+PYDANTIC_TYPE_MAP = Config.PYDANTIC_TYPE_EQUIVALENTS
 
 
 class Model:

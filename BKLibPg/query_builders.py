@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, List, Tuple
+from BKLibPg.config import Config
 
 def wrapper_where_query(query: str) -> str:
     """
@@ -133,17 +134,7 @@ class QueryBuilder:
         params => {'nombre': '%PÉREZ%'}
     """
 
-    _OPERATOR_MAP = {
-        "equal": "=",
-        "not_equal": "!=",
-        "gt": ">",
-        "gte": ">=",
-        "lt": "<",
-        "lte": "<=",
-        "like": "ILIKE",   # PostgreSQL usa ILIKE para comparación insensible a mayúsculas
-        "in": "IN",
-        "between": "BETWEEN",
-    }
+    _OPERATOR_MAP = Config.DATABASE_OPERATORS
 
     def __init__(
         self,
