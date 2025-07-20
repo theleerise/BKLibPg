@@ -6,7 +6,7 @@ from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_
 from BKLibPg.model import Model
 
 
-class ManagerCrudBase(ManagerBase, ABC):
+class ManagerBuilder(ManagerBase, ABC):
     """
     Clase base abstracta para managers CRUD (Create, Read, Update, Delete)
     que gestionan operaciones sobre tablas PostgreSQL utilizando modelos personalizados.
