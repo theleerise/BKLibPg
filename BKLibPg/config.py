@@ -54,3 +54,17 @@ class Config:
         JsonType: Json,      # Usa el validador `Json` de Pydantic
         UUIDType: UUID,
     }
+    
+    FIELD_LAMBDA_TYPE_MAP = {
+        "string": lambda name, **kwargs: StringType(name, **kwargs),
+        "integer": lambda name, **kwargs: IntegerType(name, **kwargs),
+        "float": lambda name, **kwargs: FloatType(name, **kwargs),
+        "boolean": lambda name, **kwargs: BooleanType(name, **kwargs),
+        "date": lambda name, **kwargs: DateType(name, **kwargs),
+        "datetime": lambda name, **kwargs: DateTimeType(name, **kwargs),
+        "time": lambda name, **kwargs: TimeType(name, **kwargs),
+        "json": lambda name, **kwargs: JsonType(name, **kwargs),
+        "binary": lambda name, **kwargs: BinaryType(name, **kwargs),
+        "uuid": lambda name, **kwargs: UUIDType(name, **kwargs),
+        "base64": lambda name, **kwargs: Base64Type(name, **kwargs),
+    }

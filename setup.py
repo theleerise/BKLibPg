@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="BKLibPg",  # Nombre del paquete
-    version="0.11.8",  # Versión incrementada para reflejar las nuevas funcionalidades
+    version="1.0.1",  # Versión incrementada para reflejar las nuevas funcionalidades
     author="Elieser Castro",
     author_email="bkelidireccion@gmail.com",
     description=(

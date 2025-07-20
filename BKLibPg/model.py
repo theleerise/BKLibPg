@@ -1,3 +1,4 @@
+from typing import Type, Dict, List
 from typing import Type
 import json
 from pydantic import create_model
@@ -5,6 +6,7 @@ from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
 from BKLibPg.config import Config
 
 PYDANTIC_TYPE_MAP = Config.PYDANTIC_TYPE_EQUIVALENTS
+FIELD_TYPE_MAP = Config.FIELD_LAMBDA_TYPE_MAP
 
 
 class Model:
@@ -67,3 +69,27 @@ class Model:
 
         pydantic_cls = create_model(name, **annotations)
         return pydantic_cls
+
+
+class DynamicModel(Model):
+    @classmethod
+    def configure(cls, definition: dict, registry: Dict[str, Type] = None):
+        cls.table_name = definition["table"]
+        cls.fields = {}
+        registry = registry or {}
+
+        for field_name, info in definition["fields"].items():
+            field_type = info.pop("type")
+            factory = FIELD_TYPE_MAP.get(field_type)
+            if not factory:
+                raise ValueError(f"Tipo de campo no reconocido: {field_type}")
+
+            # Foreign key support
+            foreign_model = info.pop("foreign_model", None)
+            foreign_manager = info.pop("foreign_manager", None)
+            if foreign_model:
+                info["foreign_model"] = registry.get(foreign_model)
+            if foreign_manager:
+                info["foreign_manager_class"] = registry.get(foreign_manager)
+
+            cls.fields[field_name] = factory(field_name, **info)
