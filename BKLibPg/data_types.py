@@ -3,16 +3,50 @@ import uuid
 import base64
 
 class BaseField:
-    def __init__(self, name, dbname=None, doc="", nullable=True, default=None, **kwargs):
+    def __init__(self, name, dbname=None, doc="", nullable=True, default=None, primary_key=False, foreign_key="", **kwargs):
         self.name = name
         self.dbname = dbname or name
         self.doc = doc
         self.nullable = nullable
         self.default = default
+        self.primary_key = primary_key
+        self.foreign_key = foreign_key
         self.extra = kwargs
 
     def validate(self, value):
         raise NotImplementedError("Subclases deben implementar validate")
+
+
+class StringType(BaseField):
+    def validate(self, value):
+        if value is None:
+            if not self.nullable:
+                raise ValueError(f"{self.name} no puede ser nulo")
+            return
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena de texto (str)")
+        min_len = self.extra.get("min_length")
+        max_len = self.extra.get("max_length")
+        if min_len is not None and len(value) < min_len:
+            raise ValueError(f"{self.name} debe tener al menos {min_len} caracteres")
+        if max_len is not None and len(value) > max_len:
+            raise ValueError(f"{self.name} debe tener como máximo {max_len} caracteres")
+
+
+class IntegerType(BaseField):
+    def validate(self, value):
+        if value is None:
+            if not self.nullable:
+                raise ValueError(f"{self.name} no puede ser nulo")
+            return
+        if not isinstance(value, int):
+            raise TypeError(f"{self.name} debe ser un entero (int)")
+        min_val = self.extra.get("min_value")
+        max_val = self.extra.get("max_value")
+        if min_val is not None and value < min_val:
+            raise ValueError(f"{self.name} debe ser >= {min_val}")
+        if max_val is not None and value > max_val:
+            raise ValueError(f"{self.name} debe ser <= {max_val}")
 
 
 class FloatType(BaseField):
