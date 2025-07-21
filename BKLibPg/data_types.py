@@ -3,7 +3,23 @@ import uuid
 import base64
 
 class BaseField:
+    """
+    Clase base para todos los tipos de campos. Define la interfaz y atributos comunes.
+    """
+
     def __init__(self, name, dbname=None, doc="", nullable=True, default=None, primary_key=False, foreign_key="", **kwargs):
+        """
+        Inicializa un campo base con metainformación para validación y mapeo.
+
+        :param name: Nombre interno del campo.
+        :param dbname: Nombre del campo en base de datos. Si no se especifica, se usa `name`.
+        :param doc: Descripción del campo.
+        :param nullable: Indica si el campo acepta valores nulos.
+        :param default: Valor por defecto si no se proporciona uno.
+        :param primary_key: Indica si el campo es parte de la clave primaria.
+        :param foreign_key: Clave foránea, si aplica.
+        :param kwargs: Parámetros adicionales específicos del tipo de campo.
+        """
         self.name = name
         self.dbname = dbname or name
         self.doc = doc
@@ -14,10 +30,20 @@ class BaseField:
         self.extra = kwargs
 
     def validate(self, value):
+        """
+        Método que debe implementar cada tipo de campo para validar su valor.
+
+        :param value: Valor a validar.
+        :raises NotImplementedError: Si no es sobreescrito en una subclase.
+        """
         raise NotImplementedError("Subclases deben implementar validate")
 
 
 class StringType(BaseField):
+    """
+    Campo de tipo cadena de texto (str), con validación de longitud mínima y máxima.
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -34,6 +60,10 @@ class StringType(BaseField):
 
 
 class IntegerType(BaseField):
+    """
+    Campo de tipo entero (int), con validación de valor mínimo y máximo.
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -50,12 +80,16 @@ class IntegerType(BaseField):
 
 
 class FloatType(BaseField):
+    """
+    Campo numérico de punto flotante (float). También acepta enteros.
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-        if not isinstance(value, float) and not isinstance(value, int):  # permitir enteros también
+        if not isinstance(value, float) and not isinstance(value, int): # permitir enteros también
             raise TypeError(f"{self.name} debe ser numérico (float)")
         min_val = self.extra.get("min_value")
         max_val = self.extra.get("max_value")
@@ -66,6 +100,10 @@ class FloatType(BaseField):
 
 
 class BooleanType(BaseField):
+    """
+    Campo booleano (True o False).
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -76,6 +114,10 @@ class BooleanType(BaseField):
 
 
 class DateType(BaseField):
+    """
+    Campo de tipo fecha (datetime.date).
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -86,6 +128,10 @@ class DateType(BaseField):
 
 
 class DateTimeType(BaseField):
+    """
+    Campo de tipo fecha y hora (datetime.datetime).
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -96,6 +142,10 @@ class DateTimeType(BaseField):
 
 
 class TimeType(BaseField):
+    """
+    Campo de tipo hora (datetime.time).
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -106,6 +156,10 @@ class TimeType(BaseField):
 
 
 class BinaryType(BaseField):
+    """
+    Campo de tipo binario (bytes o bytearray).
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -116,6 +170,10 @@ class BinaryType(BaseField):
 
 
 class JsonType(BaseField):
+    """
+    Campo que representa un valor serializable a JSON (dict, list, etc.).
+    """
+
     def validate(self, value):
         import json
         if value is None:
@@ -123,12 +181,16 @@ class JsonType(BaseField):
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
         try:
-            json.dumps(value)  # Validar serialización
+            json.dumps(value) # Validar serialización
         except Exception:
             raise TypeError(f"{self.name} debe ser un valor JSON válido (dict, list, etc.)")
 
 
 class UUIDType(BaseField):
+    """
+    Campo de tipo UUID. También acepta cadenas que representen UUIDs válidos.
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -145,6 +207,10 @@ class UUIDType(BaseField):
 
 
 class Base64Type(BaseField):
+    """
+    Campo que representa una cadena codificada en base64.
+    """
+
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -161,4 +227,10 @@ class Base64Type(BaseField):
             raise ValueError(f"{self.name} no contiene una cadena base64 válida")
 
     def get_decoded(self, value):
+        """
+        Devuelve el contenido decodificado en binario de una cadena base64.
+
+        :param value: Cadena base64 válida.
+        :return: Bytes decodificados.
+        """
         return base64.b64decode(value, validate=True)
