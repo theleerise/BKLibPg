@@ -37,6 +37,20 @@ class Model:
         PydanticCls = self.__class__.pydantic_definition_model()
         return PydanticCls(**self.to_dict())
 
+    def get_primary_key(self):
+        """
+        Devuelve un dict con los valores de los campos que componen la clave primaria.
+        Si no hay ninguna clave primaria definida, lanza una excepción.
+        """
+        pk_fields = {
+            key: self._data[key]
+            for key, field in self.__class__.fields.items()
+            if field.primary_key
+        }
+        if not pk_fields:
+            raise AttributeError("Este modelo no tiene campos de clave primaria definidos.")
+        return pk_fields
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(**data)
@@ -69,6 +83,20 @@ class Model:
 
         pydantic_cls = create_model(name, **annotations)
         return pydantic_cls
+
+    @classmethod
+    def get_primary_key_definition(cls):
+        """
+        Devuelve una lista con los nombres de los campos que componen la clave primaria.
+        """
+        pk_keys = [
+            key
+            for key, field in cls.fields.items()
+            if field.primary_key
+        ]
+        if not pk_keys:
+            raise AttributeError("Este modelo no tiene campos de clave primaria definidos.")
+        return pk_keys
 
 
 class DynamicModel(Model):

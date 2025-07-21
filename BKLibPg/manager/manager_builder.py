@@ -180,6 +180,25 @@ class ManagerBuilder(ManagerBase, ABC):
         offset = (page - 1) * page_size
         return self.getlist_paginated(filters=filters, params=params, limit=page_size, offset=offset)
 
+    def get_by_id(self, values: dict) -> Optional[Model]:
+        """Devuelve un modelo basandose en la primary key del modelo
+
+        Args:
+            values (dict): diccionario de datos sobre el registro, puede contener multiples valores pero siempre tiene que contener la primary key del modelo
+
+        Returns:
+            Optional[Model]: Objeto model que representa el registro extraido
+        """
+        sql_base = wrapper_where_query(self._get_sql_query())
+        pk_list = self.output_model.get_primary_key_definition
+        pk_filter = [{"column": campo} for campo in pk_list]
+        
+        qb = QueryBuilder(sql_base, pk_filter, values)
+        sql_with_filters, bind_params = qb.build()
+        
+        row = self.fetch_one(sql_with_filters, bind_params)
+        return self.output_model.from_dict(row) if row else None
+
     def before_insert(self, model_obj: Model) -> Model:
         """
         Hook opcional que se ejecuta antes de un INSERT.
