@@ -10,9 +10,16 @@ FIELD_TYPE_MAP = Config.FIELD_LAMBDA_TYPE_MAP
 
 
 class Model:
+    """
+    Clase base para representar un modelo de datos con validación y conversión a formatos comunes.
+    """
     fields: dict = {}
 
     def __init__(self, **kwargs):
+        """
+        Inicializa una instancia del modelo utilizando los valores proporcionados en `kwargs`.
+        Valida cada campo de acuerdo con su definición.
+        """
         self._data = {}
         for key, field in self.__class__.fields.items():
             value = kwargs.get(field.dbname, field.default)
@@ -20,20 +27,43 @@ class Model:
             self._data[key] = value
 
     def __getattr__(self, item):
+        """
+        Permite acceder a los valores de los campos como atributos del objeto.
+        Lanza AttributeError si el campo no existe.
+        """
         if item in self._data:
             return self._data[item]
         raise AttributeError(f"No existe el campo '{item}'")
 
     def __repr__(self):
+        """
+        Representación textual de la instancia del modelo.
+        """
         return f"<{self.__class__.__name__} {self._data}>"
 
     def to_dict(self):
+        """
+        Convierte el modelo a un diccionario.
+        
+        :return: Diccionario con los datos del modelo.
+        """
         return self._data.copy()
 
     def to_json(self, **kwargs):
+        """
+        Convierte el modelo a una cadena JSON.
+        
+        :param kwargs: Parámetros adicionales para `json.dumps`.
+        :return: Cadena JSON.
+        """
         return json.dumps(self.to_dict(), **kwargs)
 
     def to_pydantic(self):
+        """
+        Convierte la instancia actual del modelo a una instancia Pydantic.
+        
+        :return: Instancia de un modelo Pydantic equivalente.
+        """
         PydanticCls = self.__class__.pydantic_definition_model()
         return PydanticCls(**self.to_dict())
 
@@ -41,6 +71,9 @@ class Model:
         """
         Devuelve un dict con los valores de los campos que componen la clave primaria.
         Si no hay ninguna clave primaria definida, lanza una excepción.
+        
+        :return: Diccionario con los campos clave primaria.
+        :raises AttributeError: Si no hay claves primarias definidas.
         """
         pk_fields = {
             key: self._data[key]
@@ -53,20 +86,44 @@ class Model:
 
     @classmethod
     def from_dict(cls, data: dict):
+        """
+        Crea una instancia del modelo a partir de un diccionario.
+        
+        :param data: Diccionario con los datos del modelo.
+        :return: Instancia del modelo.
+        """
         return cls(**data)
 
     @classmethod
     def from_json(cls, json_str: str):
+        """
+        Crea una instancia del modelo a partir de una cadena JSON.
+        
+        :param json_str: Cadena JSON.
+        :return: Instancia del modelo.
+        """
         data = json.loads(json_str)
         return cls.from_dict(data)
 
     @classmethod
     def from_pydantic(cls, pyd_obj: PydanticBaseModel):
+        """
+        Crea una instancia del modelo a partir de un modelo Pydantic.
+        
+        :param pyd_obj: Instancia Pydantic.
+        :return: Instancia del modelo.
+        """
         data = pyd_obj.dict(by_alias=True)
         return cls.from_dict(data)
 
     @classmethod
     def pydantic_definition_model(cls, name=None) -> Type[PydanticBaseModel]:
+        """
+        Genera una clase Pydantic equivalente al modelo actual.
+        
+        :param name: Nombre opcional para el modelo generado.
+        :return: Clase de modelo Pydantic.
+        """
         name = name or f"P_{cls.__name__}"
         annotations = {}
         field_defs = {}
@@ -88,6 +145,9 @@ class Model:
     def get_primary_key_definition(cls):
         """
         Devuelve una lista con los nombres de los campos que componen la clave primaria.
+        
+        :return: Lista de nombres de campos clave primaria.
+        :raises AttributeError: Si no hay claves primarias definidas.
         """
         pk_keys = [
             key
@@ -100,8 +160,19 @@ class Model:
 
 
 class DynamicModel(Model):
+    """
+    Clase que permite crear modelos dinámicamente a partir de una definición estructurada.
+    """
+
     @classmethod
     def configure(cls, definition: dict, registry: Dict[str, Type] = None):
+        """
+        Configura la clase dinámica con los campos definidos en `definition`.
+
+        :param definition: Diccionario con la definición del modelo (tabla y campos).
+        :param registry: Diccionario de clases disponibles para claves foráneas.
+        :raises ValueError: Si el tipo de campo no es reconocido.
+        """
         cls.table_name = definition["table"]
         cls.fields = {}
         registry = registry or {}
