@@ -2,7 +2,7 @@ from BKLibPg.manager.manager_builder import ManagerBuilder
 from BKLibPg.model import Model
 from BKLibPg.data_types import (
     IntegerType, StringType, FloatType, BooleanType,
-    DateTimeType
+    DateTimeType, InetType
 )
 
 ##################################################################################
@@ -26,7 +26,7 @@ class ModelActivityConnections(Model):
         "datid": IntegerType("datid", nullable=True),
         "database_name": StringType("database_name", nullable=True),
 
-        "client_addr": StringType("client_addr", nullable=True),
+        "client_addr": InetType("client_addr", nullable=True),
         "client_hostname": StringType("client_hostname", nullable=True),
         "client_port": IntegerType("client_port", nullable=True),
 
