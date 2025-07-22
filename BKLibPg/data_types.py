@@ -1,4 +1,6 @@
 from datetime import date, datetime, time
+from decimal import Decimal
+import ipaddress
 import uuid
 import base64
 
@@ -69,6 +71,11 @@ class IntegerType(BaseField):
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
+        if isinstance(value, str):
+            try:
+                value = int(value)
+            except ValueError:
+                raise TypeError(f"{self.name} debe ser un entero (int) o una cadena convertible a entero")
         if not isinstance(value, int):
             raise TypeError(f"{self.name} debe ser un entero (int)")
         min_val = self.extra.get("min_value")
@@ -81,7 +88,7 @@ class IntegerType(BaseField):
 
 class FloatType(BaseField):
     """
-    Campo numérico de punto flotante (float). También acepta enteros.
+    Campo numérico de punto flotante (float, decimal). También acepta enteros.
     """
 
     def validate(self, value):
@@ -89,7 +96,9 @@ class FloatType(BaseField):
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-        if not isinstance(value, float) and not isinstance(value, int): # permitir enteros también
+        if isinstance(value, Decimal):
+            value = float(value)
+        if not isinstance(value, (float, int)):
             raise TypeError(f"{self.name} debe ser numérico (float)")
         min_val = self.extra.get("min_value")
         max_val = self.extra.get("max_value")
@@ -234,3 +243,28 @@ class Base64Type(BaseField):
         :return: Bytes decodificados.
         """
         return base64.b64decode(value, validate=True)
+
+
+class InetType(BaseField):
+    """
+    Campo para direcciones IP PostgreSQL tipo INET.
+    Acepta IPv4Address, IPv6Address o str válidas.
+    """
+
+    def validate(self, value):
+        if value is None:
+            if not self.nullable:
+                raise ValueError(f"{self.name} no puede ser nulo")
+            return
+
+        if isinstance(value, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+            return
+
+        if isinstance(value, str):
+            try:
+                ipaddress.ip_address(value)
+            except ValueError:
+                raise ValueError(f"{self.name} no es una dirección IP válida (str)")
+            return
+
+        raise TypeError(f"{self.name} debe ser una dirección IP (IPv4/IPv6 o str)")
