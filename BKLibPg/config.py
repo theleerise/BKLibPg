@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 from uuid import UUID
-from pydantic import Json, IPvAnyAddress
+from pydantic import Json, IPvAnyAddress, EmailStr, AnyUrl
 from BKLibPg.data_types import (
     StringType,
     IntegerType,
@@ -14,6 +14,11 @@ from BKLibPg.data_types import (
     JsonType,
     UUIDType,
     InetType,
+    EmailType,
+    URLType,
+    EnumType,
+    ListType,
+    MacAddressType
 )
 
 class Config:
@@ -54,7 +59,12 @@ class Config:
         Base64Type: str,     # Pydantic no tiene un tipo base64 como tal; se usa `str`
         JsonType: Json,      # Usa el validador `Json` de Pydantic
         UUIDType: UUID,
-        InetType: IPvAnyAddress
+        InetType: IPvAnyAddress,
+        EmailType: EmailStr,
+        URLType: AnyUrl,
+        EnumType: str,         # Pydantic puede usar Literal o Enum directamente, pero por defecto lo mapeamos como str
+        ListType: list,
+        MacAddressType: str    # No hay tipo específico en Pydantic; validación se hace en el tipo custom
     }
     
     FIELD_LAMBDA_TYPE_MAP = {
@@ -70,4 +80,9 @@ class Config:
         "uuid": lambda name, **kwargs: UUIDType(name, **kwargs),
         "base64": lambda name, **kwargs: Base64Type(name, **kwargs),
         "inet": lambda name, **kwargs: InetType(name, **kwargs),
+        "email": lambda name, **kwargs: EmailType(name, **kwargs),
+        "url": lambda name, **kwargs: URLType(name, **kwargs),
+        "enum": lambda name, **kwargs: EnumType(name, **kwargs),
+        "list": lambda name, **kwargs: ListType(name, **kwargs),
+        "mac": lambda name, **kwargs: MacAddressType(name, **kwargs),
     }

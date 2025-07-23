@@ -1,7 +1,9 @@
 from datetime import date, datetime, time
+from urllib.parse import urlparse
 from decimal import Decimal
 import ipaddress
 import uuid
+import re
 import base64
 
 class BaseField:
@@ -268,3 +270,56 @@ class InetType(BaseField):
             return
 
         raise TypeError(f"{self.name} debe ser una dirección IP (IPv4/IPv6 o str)")
+
+
+class EmailType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena (email)")
+        regex = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+        if not re.match(regex, value):
+            raise ValueError(f"{self.name} no es un email válido")
+
+
+class URLType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena (URL)")
+        parsed = urlparse(value)
+        if not all([parsed.scheme, parsed.netloc]):
+            raise ValueError(f"{self.name} no es una URL válida")
+
+
+class EnumType(BaseField):
+    def validate(self, value):
+        allowed = self.extra.get("choices", [])
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if value not in allowed:
+            raise ValueError(f"{self.name} debe estar en {allowed}")
+
+
+class ListType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, list):
+            raise TypeError(f"{self.name} debe ser una lista")
+        subtype = self.extra.get("subtype")
+        if subtype:
+            for item in value:
+                subtype(name=f"{self.name}_item").validate(item)
+
+
+class MacAddressType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena (MAC)")
+        if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", value):
+            raise ValueError(f"{self.name} no es una MAC válida")
