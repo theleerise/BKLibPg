@@ -68,7 +68,7 @@ class MgrdbActivityConnections(ManagerBuilder):
     This class is responsible for managing the connections to the database
     and providing methods to interact with them.
     """
-    def __init__(self, connection_engine, input_model=ModelActivityConnections, output_model=ModelActivityConnections, table_name=None, id=None):
+    def __init__(self, connection_engine):
         """
         Initializes the MgrdbActivityConnections manager.
 
@@ -76,7 +76,7 @@ class MgrdbActivityConnections(ManagerBuilder):
         :param input_model: The model for input data.
         :param output_model: The model for output data.
         """
-        super().__init__(connection_engine, input_model, output_model, table_name, id)
+        super().__init__(connection_engine, ModelActivityConnections, ModelActivityConnections, None, None)
 
     def _get_sql_query(self):
         sql = f"""
