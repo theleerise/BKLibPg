@@ -1,17 +1,77 @@
-Licencia de Uso Personal
+Copyright (C) 2024 Elieser Damian Castro Eusebio
 
-Copyright (C) [2024] [Elieser Damian Castro Eusebio]
+LICENCIA DE USO  
+Creative Commons - Reconocimiento-NoComercial-SinObraDerivada 4.0 Internacional  
+(CC BY-NC-ND 4.0)  
+https://creativecommons.org/licenses/by-nc-nd/4.0/
 
-Este software es proporcionado exclusivamente para uso personal. 
-Queda estrictamente prohibido:
+Este software, incluyendo todo su código fuente, documentación, recursos gráficos y archivos asociados, es propiedad intelectual de Elieser Damian Castro Eusebio, y se distribuye bajo los términos de la licencia Creative Commons Reconocimiento-NoComercial-SinObraDerivada 4.0 Internacional (CC BY-NC-ND 4.0).
 
-1. Distribuir, vender o sublicenciar este software a terceros.
-2. Modificar el código fuente o binario del software.
-3. Utilizar este software para fines comerciales.
+### 1. DERECHOS CONCEDIDOS
 
-El titular de los derechos de autor no ofrece garantía alguna sobre este software, 
-incluyendo, entre otras, garantías de comerciabilidad o idoneidad para un propósito particular. 
-El uso del software es bajo su propio riesgo.
+Se autoriza al usuario a:
 
-Para cualquier pregunta relacionada con esta licencia, comuníquese con: 
-[bkelidireccion@gmail.com]
+- **Acceder al software** para fines personales, educativos, de aprendizaje o experimentación.
+- **Copiar y redistribuir** el software únicamente en su forma original, sin modificaciones, y siempre respetando esta licencia.
+- **Ejecutar el software** en sus dispositivos personales, sin fines de lucro ni compensación económica.
+
+En todos los casos, se requiere:
+
+- **Reconocer la autoría** de forma clara e inequívoca, incluyendo el nombre completo del autor: *Elieser Damian Castro Eusebio*, y un enlace visible a esta licencia.
+- **Incluir esta licencia sin alteraciones** en cualquier redistribución del software.
+
+---
+
+### 2. PROHIBICIONES ESTRICTAS
+
+No está permitido, bajo ninguna circunstancia:
+
+- **Modificar, alterar o transformar** el código fuente, el binario o cualquier parte del software.
+- **Descompilar, desensamblar, realizar ingeniería inversa** o intentar obtener el código fuente desde archivos compilados.
+- **Crear obras derivadas** a partir de este software, ya sea para uso personal o de terceros.
+- **Distribuir copias modificadas** del software, ni en plataformas públicas ni privadas.
+- **Utilizar el software con fines comerciales**, incluyendo pero no limitándose a:
+    - Venta directa o indirecta del software.
+    - Inclusión en productos o servicios pagos.
+    - Uso en entornos empresariales, corporativos o institucionales.
+    - Monetización mediante anuncios, suscripciones o modelos similares.
+
+Estas restricciones aplican independientemente del medio, formato o método de distribución.
+
+---
+
+### 3. ALCANCE DEL USO PERSONAL
+
+Se entiende por **uso personal** el uso exclusivo y privado del software por parte de una persona física, en un entorno no lucrativo, sin impacto económico ni redistribución.
+
+Quedan expresamente excluidos los siguientes escenarios:
+
+- Uso en proyectos, tareas o servicios de carácter profesional o comercial.
+- Implementación en instituciones públicas o privadas.
+- Inclusión en plataformas, cursos o formaciones con fines de lucro.
+- Automatización o integración en sistemas corporativos.
+
+---
+
+### 4. EXENCIÓN DE RESPONSABILIDAD
+
+Este software se proporciona **"tal cual"**, sin garantías de ningún tipo, expresas o implícitas. Esto incluye, entre otras, garantías de:
+
+- Funcionamiento ininterrumpido.
+- Ausencia de errores o vulnerabilidades.
+- Idoneidad para un fin específico.
+- Compatibilidad con otros sistemas.
+
+El autor **no asume ninguna responsabilidad** por pérdidas, daños, perjuicios o consecuencias directas o indirectas derivadas del uso o mal uso de este software.
+
+---
+
+### 5. CONSULTAS Y PERMISOS
+
+Para solicitar un permiso especial, negociar una licencia comercial, realizar consultas legales o resolver cualquier duda respecto al uso de este software, póngase en contacto directamente con el autor:
+
+📧 **bkelidireccion@gmail.com**
+
+---
+
+El uso de este software implica la aceptación completa y sin reservas de los términos aquí descritos.
