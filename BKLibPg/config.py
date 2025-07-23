@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 from uuid import UUID
-from pydantic import Json
+from pydantic import Json, IPvAnyAddress
 from BKLibPg.data_types import (
     StringType,
     IntegerType,
@@ -13,6 +13,7 @@ from BKLibPg.data_types import (
     Base64Type,
     JsonType,
     UUIDType,
+    InetType,
 )
 
 class Config:
@@ -24,9 +25,9 @@ class Config:
     # Database connection settings
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
-    DB_NAME: str = "mydatabase"
-    DB_USER: str = "myuser"
-    DB_PASSWORD: str = "mypassword"
+    DB_NAME: str = "postgres"
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = "12345678"
 
     # Other configuration settings can be added here
     DATABASE_OPERATORS = {
@@ -53,6 +54,7 @@ class Config:
         Base64Type: str,     # Pydantic no tiene un tipo base64 como tal; se usa `str`
         JsonType: Json,      # Usa el validador `Json` de Pydantic
         UUIDType: UUID,
+        InetType: IPvAnyAddress
     }
     
     FIELD_LAMBDA_TYPE_MAP = {
@@ -67,4 +69,5 @@ class Config:
         "binary": lambda name, **kwargs: BinaryType(name, **kwargs),
         "uuid": lambda name, **kwargs: UUIDType(name, **kwargs),
         "base64": lambda name, **kwargs: Base64Type(name, **kwargs),
+        "inet": lambda name, **kwargs: InetType(name, **kwargs),
     }
