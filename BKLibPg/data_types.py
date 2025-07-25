@@ -323,3 +323,84 @@ class MacAddressType(BaseField):
             raise TypeError(f"{self.name} debe ser una cadena (MAC)")
         if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", value):
             raise ValueError(f"{self.name} no es una MAC válida")
+
+
+class MoneyType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, (Decimal, float, int)):
+            raise TypeError(f"{self.name} debe ser numérico (Decimal, float o int)")
+
+
+class XMLType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena XML")
+        if not value.strip().startswith("<"):
+            raise ValueError(f"{self.name} debe parecer XML")
+
+
+class IntervalType(BaseField):
+    def validate(self, value):
+        from datetime import timedelta
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, timedelta):
+            raise TypeError(f"{self.name} debe ser un objeto timedelta")
+
+
+class CidrType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        try:
+            ipaddress.IPv4Network(value, strict=False)
+        except Exception:
+            try:
+                ipaddress.IPv6Network(value, strict=False)
+            except Exception:
+                raise ValueError(f"{self.name} no es un bloque CIDR válido")
+
+
+class MacAddress8Type(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena (MAC8)")
+        if not re.match(r"^([0-9A-Fa-f]{2}:){7}([0-9A-Fa-f]{2})$", value):
+            raise ValueError(f"{self.name} no es una MAC de 8 bytes válida")
+
+
+class BitType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena de bits")
+        if not re.fullmatch(r"[01]+", value):
+            raise ValueError(f"{self.name} debe contener solo 0 y 1")
+
+
+class BitVaryingType(BaseField):
+    def validate(self, value):
+        BitType.validate(self, value)  # Se comporta igual que BitType
+
+
+class RangeType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise TypeError(f"{self.name} debe ser una tupla (inicio, fin)")
+
+
+class PointType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if not (isinstance(value, tuple) and len(value) == 2 and all(isinstance(v, (int, float)) for v in value)):
+            raise TypeError(f"{self.name} debe ser una tupla (x, y)")
