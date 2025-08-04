@@ -4,6 +4,7 @@ import json
 from pydantic import create_model
 from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
 from BKLibPg.config import Config
+from BKLibPg.data_types import BaseField
 
 PYDANTIC_TYPE_MAP = Config.PYDANTIC_TYPE_EQUIVALENTS
 FIELD_TYPE_MAP = Config.FIELD_LAMBDA_TYPE_MAP
@@ -140,6 +141,69 @@ class Model:
 
         pydantic_cls = create_model(name, **annotations)
         return pydantic_cls
+
+    @classmethod
+    def json_definition_model(cls, **kwargs) -> str:
+        """
+        Devuelve un JSON con la definición estructural del modelo,
+        incluyendo metadatos de cada campo como nombre, tipo, nulabilidad, etc.
+
+        :param kwargs: Parámetros adicionales para `json.dumps`.
+        :return: Cadena JSON con la definición de los campos.
+        
+        :example:
+        print(model_usuario.json_definition_model(indent=4))
+
+        {
+            "model": "Usuario",
+            "fields": {
+                "id": {
+                    "name": "id",
+                    "dbname": "id",
+                    "type": "IntegerType",
+                    "doc": "Identificador único",
+                    "nullable": false,
+                    "default": null,
+                    "primary_key": true,
+                    "foreign_key": "",
+                    "extra": {}
+                },
+                "email": {
+                    "name": "email",
+                    "dbname": "email",
+                    "type": "EmailType",
+                    "doc": "Correo del usuario",
+                    "nullable": false,
+                    "default": null,
+                    "primary_key": false,
+                    "foreign_key": "",
+                    "extra": {}
+                }
+            }
+        }
+        """
+        def field_definition(field: BaseField):
+            return {
+                "name": field.name,
+                "dbname": field.dbname,
+                "type": type(field).__name__,
+                "doc": field.doc,
+                "nullable": field.nullable,
+                "default": field.default,
+                "primary_key": field.primary_key,
+                "foreign_key": field.foreign_key,
+                "extra": field.extra
+            }
+
+        definition = {
+            "model": cls.__name__,
+            "table": getattr(cls, "table_name", None),
+            "fields": {
+                field_name: field_definition(field)
+                for field_name, field in cls.fields.items()
+            }
+        }
+        return json.dumps(definition, **kwargs)
 
     @classmethod
     def get_primary_key_definition(cls):
