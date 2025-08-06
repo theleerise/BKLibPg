@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Type, Optional
 from psycopg.rows import dict_row
 from BKLibPg.manager.manager_base import ManagerBase
-from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_query
+from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_query, counter_row_query
 from BKLibPg.model import Model
 
 
@@ -144,7 +144,7 @@ class ManagerBuilder(ManagerBase, ABC):
             offset: desplazamiento de filas.
     
         Retorna:
-            Lista de modelos.
+            Diccionario con los datos paginados, incluyendo total de filas y número de página.
         """
         sql_base = wrapper_where_query(self._get_sql_query())
         if filters and params:
@@ -153,10 +153,25 @@ class ManagerBuilder(ManagerBase, ABC):
         else:
             sql_with_filters = sql_base
             bind_params = {}
-    
+
+        # Contar filas totales para paginación
+        count_query = counter_row_query(sql_with_filters)
+        total_rows = self.fetch_one(count_query, bind_params).get("counter", 0)
+
+        # Aplicar paginación
         paginated_sql = range_row_query(sql_with_filters, offset=offset, limit=limit)
         rows = self.fetch_all(paginated_sql, bind_params)
-        return [self.output_model.from_dict(r) for r in rows]
+        resultset = [self.output_model.from_dict(r) for r in rows]
+
+        # Construir el resultado paginado
+        result = {
+            "total_rows": total_rows,
+            "page_size": limit,
+            "page_number": (offset // limit) + 1,
+            "data": resultset
+        }
+
+        return result
 
     def getlist_page(
         self,
@@ -175,7 +190,7 @@ class ManagerBuilder(ManagerBase, ABC):
             params: valores de los filtros.
 
         Retorna:
-            Lista de modelos en la página solicitada.
+            Diccionario con los datos paginados.
         """
         offset = (page - 1) * page_size
         return self.getlist_paginated(filters=filters, params=params, limit=page_size, offset=offset)
