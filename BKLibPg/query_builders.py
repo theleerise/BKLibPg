@@ -234,6 +234,11 @@ class QueryBuilder:
             op (str): Operador lógico ('equal', 'gt', etc).
         """
         bind = self._next_bind(column)
+
+        # Agregar comodines si es un operador tipo LIKE
+        if op in ("like", "ilike") and isinstance(value, str):
+            value = f"%{value}%"
+
         self._params[bind] = value
         sql_op = self._OPERATOR_MAP.get(op, "=")
         self._where_clauses.append(f"AND {sql_col} {sql_op} %({bind})s")
