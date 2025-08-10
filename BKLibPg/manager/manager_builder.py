@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Type, Optional
 from psycopg.rows import dict_row
 from BKLibPg.manager.manager_base import ManagerBase
-from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_query, counter_row_query
+from BKLibPg.query_builders import QueryBuilder, wrapper_where_query, range_row_query, counter_row_query, order_by_query
 from BKLibPg.model import Model
 
 
@@ -105,7 +105,7 @@ class ManagerBuilder(ManagerBase, ABC):
     ######################### CRUD públicos ######################### 
     #################################################################
 
-    def getlist(self, filters: List[dict] = None, params: List[dict] = None) -> List[Model]:
+    def getlist(self, filters: List[dict] = None, params: List[dict] = None, orderby: dict = None) -> List[Model]:
         """
         Devuelve una lista de modelos aplicando filtros dinámicos.
 
@@ -124,7 +124,8 @@ class ManagerBuilder(ManagerBase, ABC):
             final_sql = sql_base
             bind_params = {}
 
-        rows = self.fetch_all(final_sql, bind_params)
+        sql_orderby = order_by_query(final_sql, orderby)
+        rows = self.fetch_all(sql_orderby, bind_params)
         return [self.output_model.from_dict(r) for r in rows]
 
     def getlist_paginated(
@@ -132,7 +133,8 @@ class ManagerBuilder(ManagerBase, ABC):
         filters: List[dict] = None,
         params: List[dict] = None,
         limit: int = 10,
-        offset: int = 0
+        offset: int = 0,
+        orderby: dict = None
     ) -> List[Model]:
         """
         Devuelve una lista paginada de modelos aplicando filtros dinámicos.
@@ -160,7 +162,8 @@ class ManagerBuilder(ManagerBase, ABC):
 
         # Aplicar paginación
         paginated_sql = range_row_query(sql_with_filters, offset=offset, limit=limit)
-        rows = self.fetch_all(paginated_sql, bind_params)
+        sql_paginated_order = order_by_query(paginated_sql, orderby)
+        rows = self.fetch_all(sql_paginated_order, bind_params)
         resultset = [self.output_model.from_dict(r) for r in rows]
 
         # Construir el resultado paginado
@@ -178,7 +181,8 @@ class ManagerBuilder(ManagerBase, ABC):
         page: int = 1,
         page_size: int = 10,
         filters: List[dict] = None,
-        params: List[dict] = None
+        params: List[dict] = None, 
+        orderby: dict = None
     ) -> List[Model]:
         """
         Devuelve una lista paginada por número de página y tamaño, con filtros dinámicos.
@@ -193,7 +197,7 @@ class ManagerBuilder(ManagerBase, ABC):
             Diccionario con los datos paginados.
         """
         offset = (page - 1) * page_size
-        return self.getlist_paginated(filters=filters, params=params, limit=page_size, offset=offset)
+        return self.getlist_paginated(filters=filters, params=params, limit=page_size, offset=offset, orderby=orderby)
 
     def get_by_id(self, values: dict) -> Optional[Model]:
         """Devuelve un modelo basandose en la primary key del modelo

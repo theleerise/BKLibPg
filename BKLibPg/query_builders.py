@@ -1,7 +1,9 @@
 from __future__ import annotations
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union, Mapping, Iterable
+import re
 from BKLibPg.config import Config
+
 
 def wrapper_where_query(query: str) -> str:
     """
@@ -423,5 +425,197 @@ AND salario >= %(salario)s
 AND fecha_alta BETWEEN %(fecha_alta)s AND %(fecha_alta_copy1)s
 AND UPPER(nombre) ILIKE %(nombre)s
 AND activo = %(activo)s
+
+"""
+
+
+_ALLOWED_FUNCS = {"UPPER", "LOWER", "TRIM"}
+
+_ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+def _is_valid_identifier(expr: str) -> bool:
+    """
+    Permite:
+      - Identificadores simples o cualificados:    tabla.columna
+      - Expresiones de función simple:             UPPER(col), LOWER(tabla.col)
+    """
+    expr = expr.strip()
+    # Identificador simple/cualificado
+    if _ID_RE.fullmatch(expr):
+        return True
+    # Función simple con un único argumento identificador
+    m = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\(\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\)", expr)
+    if m and m.group(1).upper() in _ALLOWED_FUNCS and _ID_RE.fullmatch(m.group(2)):
+        return True
+    return False
+
+def order_by_query(
+    sql: str,
+    ordering: Union[Mapping[str, str], Iterable[Tuple[str, str]]],
+    *,
+    merge_if_exists: bool = False,
+    uppercase_identifiers: bool = True
+) -> str:
+    """
+    Añade/fusiona ORDER BY al final de `sql`.
+
+    Args:
+        sql: Consulta SQL final a la que se añadirá ORDER BY.
+        ordering: Dict (inserción conserva orden) o lista de tuplas (col, dir).
+        merge_if_exists: Si True y ya hay ORDER BY, hace append con coma.
+        uppercase_identifiers: Si True, pone los identificadores/funciones en MAYÚSCULAS.
+    """
+    if not ordering:
+        return sql
+
+    # Normaliza a lista de tuplas preservando orden
+    items: List[Tuple[str, str]] = list(ordering.items()) if isinstance(ordering, Mapping) else list(ordering)
+
+    parts: List[str] = []
+    for col, direction in items:
+        if not _is_valid_identifier(col):
+            raise ValueError(f"Identificador/expresión no permitida en ORDER BY: {col!r}")
+        dir_norm = (direction or "ASC").strip().upper()
+        if dir_norm not in {"ASC", "DESC"}:
+            raise ValueError(f"Dirección no válida para {col!r}: {direction!r} (use 'ASC' o 'DESC')")
+        col_fmt = col.upper() if uppercase_identifiers and '"' not in col else col
+        # También MAYÚSCULA para nombre de función si aplica
+        if "(" in col_fmt and ")" in col_fmt:
+            fn_m = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\(", col_fmt, flags=re.I)
+            if fn_m:
+                fn = fn_m.group(1)
+                col_fmt = col_fmt.replace(fn, fn.upper(), 1)
+        parts.append(f"{col_fmt} {dir_norm}")
+
+    order_by_block = "ORDER BY\n    " + ("\n  , ".join(parts))
+
+    # ¿Ya había ORDER BY?
+    has_ob = re.search(r"\border\s+by\b", sql, flags=re.IGNORECASE) is not None
+    sql = sql.rstrip()
+
+    if has_ob and merge_if_exists:
+        # Append con coma al ORDER BY existente
+        return re.sub(r"(\border\s+by\b)(.*)$", lambda m: m.group(0).rstrip() + "\n  , " + "\n  , ".join(parts), sql, flags=re.IGNORECASE)
+    elif has_ob and not merge_if_exists:
+        # Reemplazar el ORDER BY existente completamente
+        sql_no_ob = re.sub(r"\border\s+by\b.*$", "", sql, flags=re.IGNORECASE | re.DOTALL).rstrip()
+        return f"{sql_no_ob}\n{order_by_block}"
+    else:
+        return f"{sql}\n{order_by_block}"
+
+"""
+###########################################################################################
+# Example Nº1: Caso básico
+
+sql = """
+# SELECT * FROM empleados WHERE 1=1
+# AND salario >= %(salario)s
+# AND UPPER(nombre) ILIKE %(nombre)s
+"""
+
+ordering = {
+    "salario": "ASC",
+    "nombre": "DESC",
+}
+
+print(order_by_query(sql, ordering))
+
+SELECT * FROM empleados WHERE 1=1
+AND salario >= %(salario)s
+AND UPPER(nombre) ILIKE %(nombre)s
+ORDER BY
+    SALARIO ASC
+  , NOMBRE DESC
+
+
+###########################################################################################
+# Example Nº2: Funciones en columnas
+
+sql = "SELECT * FROM clientes WHERE activo = TRUE"
+
+ordering = {
+    "UPPER(nombre)": "ASC",
+    "LOWER(ciudad)": "DESC",
+}
+
+print(order_by_query(sql, ordering))
+
+SELECT * FROM clientes WHERE activo = TRUE
+ORDER BY
+    UPPER(NOMBRE) ASC
+  , LOWER(CIUDAD) DESC
+
+
+###########################################################################################
+# Example Nº3: Ya existe ORDER BY (reemplazo)
+
+sql = """
+# SELECT * FROM productos
+# WHERE stock > 0
+# ORDER BY precio DESC
+"""
+
+ordering = {
+    "categoria": "ASC",
+    "precio": "DESC",
+}
+
+print(order_by_query(sql, ordering))
+
+SELECT * FROM productos
+WHERE stock > 0
+ORDER BY
+    CATEGORIA ASC
+  , PRECIO DESC
+
+
+###########################################################################################
+# Example Nº4: Ya existe ORDER BY (fusionar)
+sql = """
+# SELECT * FROM ventas
+# WHERE fecha >= '2024-01-01'
+# ORDER BY fecha DESC
+"""
+
+ordering = {
+    "cliente": "ASC",
+    "total": "DESC",
+}
+
+print(order_by_query(sql, ordering, merge_if_exists=True))
+
+SELECT * FROM ventas
+WHERE fecha >= '2024-01-01'
+ORDER BY fecha DESC
+  , CLIENTE ASC
+  , TOTAL DESC
+
+
+###########################################################################################
+# Example Nº5: Con tabla.columna
+
+sql = "SELECT id, nombre, departamento FROM empleados WHERE 1=1"
+
+ordering = {
+    "departamento.nombre": "ASC",
+    "empleados.salario": "DESC",
+}
+
+print(order_by_query(sql, ordering))
+
+SELECT id, nombre, departamento FROM empleados WHERE 1=1
+ORDER BY
+    DEPARTAMENTO.NOMBRE ASC
+  , EMPLEADOS.SALARIO DESC
+
+
+###########################################################################################
+# Example Nº6: Sin pasar ordering
+sql = "SELECT * FROM empleados"
+
+print(order_by_query(sql, {}))
+
+SELECT * FROM empleados
+
 
 """
