@@ -124,8 +124,7 @@ class ManagerBuilder(ManagerBase, ABC):
             final_sql = sql_base
             bind_params = {}
 
-        sql_orderby = order_by_query(final_sql, orderby)
-        rows = self.fetch_all(sql_orderby, bind_params)
+        rows = self.fetch_all(order_by_query(final_sql, orderby), bind_params)
         return [self.output_model.from_dict(r) for r in rows]
 
     def getlist_paginated(
@@ -161,9 +160,8 @@ class ManagerBuilder(ManagerBase, ABC):
         total_rows = self.fetch_one(count_query, bind_params).get("counter", 0)
 
         # Aplicar paginación
-        paginated_sql = range_row_query(sql_with_filters, offset=offset, limit=limit)
-        sql_paginated_order = order_by_query(paginated_sql, orderby)
-        rows = self.fetch_all(sql_paginated_order, bind_params)
+        paginated_sql = range_row_query(order_by_query(sql_with_filters, orderby), offset=offset, limit=limit)
+        rows = self.fetch_all(paginated_sql, bind_params)
         resultset = [self.output_model.from_dict(r) for r in rows]
 
         # Construir el resultado paginado
