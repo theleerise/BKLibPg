@@ -207,7 +207,7 @@ class ManagerBuilder(ManagerBase, ABC):
             Optional[Model]: Objeto model que representa el registro extraido
         """
         sql_base = wrapper_where_query(self._get_sql_query())
-        pk_list = self.output_model.get_primary_key_definition
+        pk_list = self.output_model.get_primary_key_definition()
         pk_filter = [{"column": campo} for campo in pk_list]
         
         qb = QueryBuilder(sql_base, pk_filter, values)
