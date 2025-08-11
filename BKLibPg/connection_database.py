@@ -44,6 +44,7 @@ class PgConnectionEngine:
                  password=DATABASE_CONFIG.DB_PASSWORD,
                  host=DATABASE_CONFIG.DB_HOST,
                  port=DATABASE_CONFIG.DB_PORT,
+                 dns=None,
                  use_pool=False,
                  min_size=1,
                  max_size=5):
@@ -52,6 +53,7 @@ class PgConnectionEngine:
         self.password = password or os.getenv('PGPASSWORD')
         self.host = host or os.getenv('PGHOST', 'localhost')
         self.port = port or int(os.getenv('PGPORT', 5432))
+        self.dns = dns or os.getenv("PGDATABASE_URI")
         self.use_pool = use_pool
 
         self._pool = None
@@ -59,6 +61,8 @@ class PgConnectionEngine:
             self._create_pool(min_size, max_size)
 
     def _get_dsn(self):
+        if self.dns:
+            return self.dns
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.dbname}"
 
     def _create_pool(self, min_size, max_size):
