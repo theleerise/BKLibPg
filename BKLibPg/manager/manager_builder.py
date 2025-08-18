@@ -216,7 +216,7 @@ class ManagerBuilder(ManagerBase, ABC):
         row = self.fetch_one(sql_with_filters, bind_params)
         return self.output_model.from_dict(row) if row else None
 
-    def before_insert(self, model_obj: Model) -> Model:
+    def before_insert(self, data: dict) -> dict:
         """
         Hook opcional que se ejecuta antes de un INSERT.
         Puede usarse para validar o transformar datos.
@@ -224,7 +224,7 @@ class ManagerBuilder(ManagerBase, ABC):
         Retorna:
             El objeto modelo (modificado o no).
         """
-        return model_obj
+        return data
 
     def insert(self, data: dict) -> None:
         """
@@ -247,11 +247,11 @@ class ManagerBuilder(ManagerBase, ABC):
         """
         pass
 
-    def before_update(self, model_obj: Model) -> Model:
+    def before_update(self, data: dict) -> dict:
         """
         Hook opcional que se ejecuta antes de un UPDATE.
         """
-        return model_obj
+        return data
 
     def update(self, data: dict) -> None:
         """
@@ -274,11 +274,11 @@ class ManagerBuilder(ManagerBase, ABC):
         """
         pass
 
-    def before_delete(self, model_obj: Model) -> Model:
+    def before_delete(self, data: dict) -> dict:
         """
         Hook opcional que se ejecuta antes de un DELETE.
         """
-        return model_obj
+        return data
 
     def delete(self, data: dict) -> None:
         """
