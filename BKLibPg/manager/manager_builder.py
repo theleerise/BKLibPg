@@ -234,8 +234,8 @@ class ManagerBuilder(ManagerBase, ABC):
             data: diccionario de datos a insertar, compatible con el modelo de entrada.
         """
         def _tx(cur):
-            before_data = self.before_insert(**data)
-            model_obj = self.input_model(before_data)
+            before_data = self.before_insert(data)
+            model_obj = self.input_model(**before_data)
             cur.execute(self._get_sql_insert(), model_obj.to_dict())
             self.after_insert(model_obj, data)
 
@@ -261,8 +261,8 @@ class ManagerBuilder(ManagerBase, ABC):
             data: diccionario con los datos a actualizar, incluyendo la clave primaria.
         """
         def _tx(cur):
-            before_data = self.before_update(**data)
-            model_obj = self.input_model(before_data)
+            before_data = self.before_update(data)
+            model_obj = self.input_model(**before_data)  
             cur.execute(self._get_sql_update(), model_obj.to_dict())
             self.after_update(model_obj, data)
 
@@ -288,8 +288,8 @@ class ManagerBuilder(ManagerBase, ABC):
             data: debe incluir el valor de la clave primaria (`id_field`).
         """
         def _tx(cur):
-            before_data = self.before_delete(**data)
-            model_obj = self.input_model(before_data)
+            before_data = self.before_delete(data)
+            model_obj = self.input_model(**before_data)
             cur.execute(self._get_sql_delete(), model_obj.to_dict())
             self.after_delete(model_obj, data)
 
