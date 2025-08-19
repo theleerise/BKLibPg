@@ -216,7 +216,7 @@ class ManagerBuilder(ManagerBase, ABC):
         row = self.fetch_one(sql_with_filters, bind_params)
         return self.output_model.from_dict(row) if row else None
 
-    def before_insert(self, data: dict) -> dict:
+    def before_insert(self, data: dict, cur) -> dict:
         """
         Hook opcional que se ejecuta antes de un INSERT.
         Puede usarse para validar o transformar datos.
@@ -226,7 +226,7 @@ class ManagerBuilder(ManagerBase, ABC):
         """
         return data
 
-    def insert(self, data: dict) -> None:
+    def insert(self, data: dict, use_model: bool=True) -> None:
         """
         Inserta un nuevo registro en la base de datos.
 
@@ -234,26 +234,32 @@ class ManagerBuilder(ManagerBase, ABC):
             data: diccionario de datos a insertar, compatible con el modelo de entrada.
         """
         def _tx(cur):
-            before_data = self.before_insert(data)
-            model_obj = self.input_model(**before_data)
-            cur.execute(self._get_sql_insert(), model_obj.to_dict())
-            self.after_insert(model_obj, data)
+            before_data = self.before_insert(data, cur)
+            
+            if use_model:
+                model_obj = self.input_model(**before_data)
+                cur.execute(self._get_sql_insert(), model_obj.to_dict())
+            else:
+                model_obj = before_data
+                cur.execute(self._get_sql_insert(), model_obj)
+
+            self.after_insert(model_obj, data, cur)
 
         self.run_transaction(_tx)
 
-    def after_insert(self, model_obj: Model, data: dict) -> None:
+    def after_insert(self, model_obj: Model|dict, data: dict, cur) -> None:
         """
         Hook opcional que se ejecuta después de un INSERT exitoso.
         """
         pass
 
-    def before_update(self, data: dict) -> dict:
+    def before_update(self, data: dict, cur) -> dict:
         """
         Hook opcional que se ejecuta antes de un UPDATE.
         """
         return data
 
-    def update(self, data: dict) -> None:
+    def update(self, data: dict, use_model: bool=True) -> None:
         """
         Actualiza un registro existente en base al `id_field`.
 
@@ -261,26 +267,32 @@ class ManagerBuilder(ManagerBase, ABC):
             data: diccionario con los datos a actualizar, incluyendo la clave primaria.
         """
         def _tx(cur):
-            before_data = self.before_update(data)
-            model_obj = self.input_model(**before_data)  
-            cur.execute(self._get_sql_update(), model_obj.to_dict())
-            self.after_update(model_obj, data)
+            before_data = self.before_update(data, cur)
+
+            if use_model:
+                model_obj = self.input_model(**before_data)  
+                cur.execute(self._get_sql_update(), model_obj.to_dict())
+            else:
+                model_obj = before_data  
+                cur.execute(self._get_sql_update(), model_obj)
+
+            self.after_update(model_obj, data, cur)
 
         self.run_transaction(_tx)
 
-    def after_update(self, model_obj: Model, data: dict) -> None:
+    def after_update(self, model_obj: Model|dict, data: dict, cur) -> None:
         """
         Hook opcional que se ejecuta después de un UPDATE exitoso.
         """
         pass
 
-    def before_delete(self, data: dict) -> dict:
+    def before_delete(self, data: dict, cur) -> dict:
         """
         Hook opcional que se ejecuta antes de un DELETE.
         """
         return data
 
-    def delete(self, data: dict) -> None:
+    def delete(self, data: dict, use_model: bool=True) -> None:
         """
         Elimina un registro de la base de datos por su clave primaria.
 
@@ -288,14 +300,20 @@ class ManagerBuilder(ManagerBase, ABC):
             data: debe incluir el valor de la clave primaria (`id_field`).
         """
         def _tx(cur):
-            before_data = self.before_delete(data)
-            model_obj = self.input_model(**before_data)
-            cur.execute(self._get_sql_delete(), model_obj.to_dict())
-            self.after_delete(model_obj, data)
+            before_data = self.before_delete(data, cur)
+            
+            if use_model:
+                model_obj = self.input_model(**before_data)
+                cur.execute(self._get_sql_delete(), model_obj.to_dict())
+            else:
+                model_obj = before_data
+                cur.execute(self._get_sql_delete(), model_obj)
+
+            self.after_delete(model_obj, data, cur)
 
         self.run_transaction(_tx)
 
-    def after_delete(self, model_obj: Model, data: dict) -> None:
+    def after_delete(self, model_obj: Model|dict, data: dict, cur) -> None:
         """
         Hook opcional que se ejecuta después de un DELETE exitoso.
         """
