@@ -1,5 +1,4 @@
-from typing import Type, Dict, List
-from typing import Type
+from typing import Type, Dict
 import json
 from pydantic import create_model
 from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
@@ -127,7 +126,6 @@ class Model:
         """
         name = name or f"P_{cls.__name__}"
         annotations = {}
-        field_defs = {}
 
         for attr_name, field in cls.fields.items():
             py_type = PYDANTIC_TYPE_MAP.get(type(field), str)
@@ -166,6 +164,7 @@ class Model:
                     "default": null,
                     "primary_key": true,
                     "foreign_key": "",
+                    "master": "",
                     "extra": {}
                 },
                 "email": {
@@ -177,6 +176,7 @@ class Model:
                     "default": null,
                     "primary_key": false,
                     "foreign_key": "",
+                    "master": "USUARIOS_MAIL",,
                     "extra": {}
                 }
             }
@@ -192,6 +192,7 @@ class Model:
                 "default": field.default,
                 "primary_key": field.primary_key,
                 "foreign_key": field.foreign_key,
+                "master": field.master,
                 "extra": field.extra
             }
 

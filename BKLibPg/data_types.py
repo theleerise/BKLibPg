@@ -11,7 +11,7 @@ class BaseField:
     Clase base para todos los tipos de campos. Define la interfaz y atributos comunes.
     """
 
-    def __init__(self, name, dbname=None, doc="", nullable=True, default=None, primary_key=False, foreign_key="", **kwargs):
+    def __init__(self, name, dbname=None, doc="", nullable=True, default=None, primary_key=False, foreign_key="", master="", **kwargs):
         """
         Inicializa un campo base con metainformación para validación y mapeo.
 
@@ -31,6 +31,7 @@ class BaseField:
         self.default = default
         self.primary_key = primary_key
         self.foreign_key = foreign_key
+        self.master = master
         self.extra = kwargs
 
     def validate(self, value):
