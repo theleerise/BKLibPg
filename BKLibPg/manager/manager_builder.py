@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import List, Type, Optional
 from psycopg.rows import dict_row
 from BKLibPg.manager.manager_base import ManagerBase
