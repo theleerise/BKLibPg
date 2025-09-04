@@ -1,10 +1,10 @@
-from datetime import date, datetime, time
-from urllib.parse import urlparse
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-import ipaddress
-import uuid
-import re
+import json as _json
+import ipaddress, uuid, re
+from urllib.parse import urlparse
 import base64
+import unicodedata
 
 class BaseField:
     """
@@ -34,6 +34,10 @@ class BaseField:
         self.master = master
         self.extra = kwargs
 
+    def deserialize(self, value):
+        # Por defecto, no hace nada; las subclases que necesiten conversión la implementan.
+        return value
+
     def validate(self, value):
         """
         Método que debe implementar cada tipo de campo para validar su valor.
@@ -43,11 +47,14 @@ class BaseField:
         """
         raise NotImplementedError("Subclases deben implementar validate")
 
+def _norm(s: str) -> str:
+    return unicodedata.normalize("NFKD", s).strip().lower()
 
 class StringType(BaseField):
-    """
-    Campo de tipo cadena de texto (str), con validación de longitud mínima y máxima.
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        return str(value)
 
     def validate(self, value):
         if value is None:
@@ -65,20 +72,30 @@ class StringType(BaseField):
 
 
 class IntegerType(BaseField):
-    """
-    Campo de tipo entero (int), con validación de valor mínimo y máximo.
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            # Evitar True/False como enteros
+            raise TypeError(f"{self.name} no debe ser booleano")
+        if isinstance(value, int):
+            return value
+        if isinstance(value, (float, Decimal)):
+            if int(value) != value:
+                raise ValueError(f"{self.name} no es entero exacto")
+            return int(value)
+        if isinstance(value, str):
+            s = value.strip()
+            if s == "":
+                return None
+            return int(s)
+        raise TypeError(f"{self.name} debe ser un entero o convertible a entero")
 
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-        if isinstance(value, str):
-            try:
-                value = int(value)
-            except ValueError:
-                raise TypeError(f"{self.name} debe ser un entero (int) o una cadena convertible a entero")
         if not isinstance(value, int):
             raise TypeError(f"{self.name} debe ser un entero (int)")
         min_val = self.extra.get("min_value")
@@ -90,17 +107,25 @@ class IntegerType(BaseField):
 
 
 class FloatType(BaseField):
-    """
-    Campo numérico de punto flotante (float, decimal). También acepta enteros.
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (float, int)):
+            return float(value)
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, str):
+            s = value.strip().replace(",", ".")
+            if s == "":
+                return None
+            return float(s)
+        raise TypeError(f"{self.name} debe ser numérico o convertible a float")
 
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-        if isinstance(value, Decimal):
-            value = float(value)
         if not isinstance(value, (float, int)):
             raise TypeError(f"{self.name} debe ser numérico (float)")
         min_val = self.extra.get("min_value")
@@ -112,9 +137,22 @@ class FloatType(BaseField):
 
 
 class BooleanType(BaseField):
-    """
-    Campo booleano (True o False).
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int,)):
+            if value in (0, 1):
+                return bool(value)
+            raise ValueError(f"{self.name} debe ser 0/1 si es entero")
+        if isinstance(value, str):
+            s = _norm(value)
+            truthy = {"true", "t", "1", "yes", "y", "on", "si", "sí", "verdadero"}
+            falsy  = {"false", "f", "0", "no", "n", "off", "falso"}
+            if s in truthy:  return True
+            if s in falsy:   return False
+        raise TypeError(f"{self.name} debe ser booleano o convertible (true/false, 1/0, sí/no)")
 
     def validate(self, value):
         if value is None:
@@ -126,23 +164,46 @@ class BooleanType(BaseField):
 
 
 class DateType(BaseField):
-    """
-    Campo de tipo fecha (datetime.date).
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, str):
+            s = value.strip()
+            # ISO: YYYY-MM-DD
+            return date.fromisoformat(s)
+        raise TypeError(f"{self.name} debe ser fecha o cadena ISO 'YYYY-MM-DD'")
 
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-        if not isinstance(value, date):
+        if not isinstance(value, date) or isinstance(value, datetime):
             raise TypeError(f"{self.name} debe ser una fecha (datetime.date)")
 
 
 class DateTimeType(BaseField):
-    """
-    Campo de tipo fecha y hora (datetime.datetime).
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, time(0, 0, 0))
+        if isinstance(value, (int, float)):
+            # Epoch (segundos)
+            return datetime.fromtimestamp(value)
+        if isinstance(value, str):
+            s = value.strip()
+            if s.endswith("Z"):   # normaliza 'Z' a '+00:00'
+                s = s[:-1] + "+00:00"
+            # ISO 8601: '2025-09-04T21:04:54.085654' etc.
+            return datetime.fromisoformat(s)
+        raise TypeError(f"{self.name} debe ser datetime o cadena ISO 8601")
 
     def validate(self, value):
         if value is None:
@@ -154,9 +215,16 @@ class DateTimeType(BaseField):
 
 
 class TimeType(BaseField):
-    """
-    Campo de tipo hora (datetime.time).
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, time):
+            return value
+        if isinstance(value, datetime):
+            return value.time()
+        if isinstance(value, str):
+            return time.fromisoformat(value.strip())
+        raise TypeError(f"{self.name} debe ser hora o cadena 'HH:MM[:SS[.mmmmmm]]'")
 
     def validate(self, value):
         if value is None:
@@ -168,10 +236,6 @@ class TimeType(BaseField):
 
 
 class BinaryType(BaseField):
-    """
-    Campo de tipo binario (bytes o bytearray).
-    """
-
     def validate(self, value):
         if value is None:
             if not self.nullable:
@@ -182,26 +246,38 @@ class BinaryType(BaseField):
 
 
 class JsonType(BaseField):
-    """
-    Campo que representa un valor serializable a JSON (dict, list, etc.).
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (dict, list, int, float, str, bool)) or value is None:
+            # si ya es JSON-serializable, lo dejamos
+            return value
+        if isinstance(value, (bytes, bytearray)):
+            value = value.decode("utf-8")
+        if isinstance(value, str):
+            return _json.loads(value)
+        raise TypeError(f"{self.name} debe ser JSON o cadena JSON")
 
     def validate(self, value):
-        import json
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
         try:
-            json.dumps(value) # Validar serialización
+            _json.dumps(value)
         except Exception:
             raise TypeError(f"{self.name} debe ser un valor JSON válido (dict, list, etc.)")
 
 
 class UUIDType(BaseField):
-    """
-    Campo de tipo UUID. También acepta cadenas que representen UUIDs válidos.
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, uuid.UUID):
+            return value
+        if isinstance(value, str):
+            return uuid.UUID(value)
+        raise TypeError(f"{self.name} debe ser UUID o string representando UUID")
 
     def validate(self, value):
         if value is None:
@@ -209,74 +285,51 @@ class UUIDType(BaseField):
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
         if not isinstance(value, uuid.UUID):
-            if isinstance(value, str):
-                try:
-                    uuid.UUID(value)
-                except Exception:
-                    raise ValueError(f"{self.name} debe ser un UUID válido")
-            else:
-                raise TypeError(f"{self.name} debe ser UUID o string representando UUID")
+            raise TypeError(f"{self.name} debe ser UUID")
 
 
 class Base64Type(BaseField):
-    """
-    Campo que representa una cadena codificada en base64.
-    """
-
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena base64")
-
         try:
-            decoded = base64.b64decode(value, validate=True)
-            self._decoded = decoded  # guardamos el valor decodificado si hace falta
+            base64.b64decode(value, validate=True)
         except Exception:
             raise ValueError(f"{self.name} no contiene una cadena base64 válida")
 
     def get_decoded(self, value):
-        """
-        Devuelve el contenido decodificado en binario de una cadena base64.
-
-        :param value: Cadena base64 válida.
-        :return: Bytes decodificados.
-        """
         return base64.b64decode(value, validate=True)
 
 
 class InetType(BaseField):
-    """
-    Campo para direcciones IP PostgreSQL tipo INET.
-    Acepta IPv4Address, IPv6Address o str válidas.
-    """
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+            return value
+        if isinstance(value, str):
+            return ipaddress.ip_address(value)
+        raise TypeError(f"{self.name} debe ser dirección IP o cadena")
 
     def validate(self, value):
         if value is None:
             if not self.nullable:
                 raise ValueError(f"{self.name} no puede ser nulo")
             return
-
-        if isinstance(value, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
-            return
-
-        if isinstance(value, str):
-            try:
-                ipaddress.ip_address(value)
-            except ValueError:
-                raise ValueError(f"{self.name} no es una dirección IP válida (str)")
-            return
-
-        raise TypeError(f"{self.name} debe ser una dirección IP (IPv4/IPv6 o str)")
+        if not isinstance(value, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+            raise TypeError(f"{self.name} debe ser IPv4/IPv6")
 
 
 class EmailType(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena (email)")
         regex = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
@@ -288,6 +341,8 @@ class URLType(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena (URL)")
         parsed = urlparse(value)
@@ -300,14 +355,33 @@ class EnumType(BaseField):
         allowed = self.extra.get("choices", [])
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if value not in allowed:
             raise ValueError(f"{self.name} debe estar en {allowed}")
 
 
 class ListType(BaseField):
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            # intenta JSON primero
+            try:
+                parsed = _json.loads(value)
+                if isinstance(parsed, list):
+                    return parsed
+            except Exception:
+                pass
+        raise TypeError(f"{self.name} debe ser una lista o cadena JSON de lista")
+
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, list):
             raise TypeError(f"{self.name} debe ser una lista")
         subtype = self.extra.get("subtype")
@@ -316,28 +390,34 @@ class ListType(BaseField):
                 subtype(name=f"{self.name}_item").validate(item)
 
 
-class MacAddressType(BaseField):
-    def validate(self, value):
-        if value is None and not self.nullable:
-            raise ValueError(f"{self.name} no puede ser nulo")
-        if not isinstance(value, str):
-            raise TypeError(f"{self.name} debe ser una cadena (MAC)")
-        if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", value):
-            raise ValueError(f"{self.name} no es una MAC válida")
-
-
 class MoneyType(BaseField):
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, (int, float)):
+            return Decimal(str(value))
+        if isinstance(value, str):
+            s = value.strip().replace("€", "").replace(",", ".")
+            return Decimal(s)
+        raise TypeError(f"{self.name} debe ser Decimal/numérico o cadena")
+
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
-        if not isinstance(value, (Decimal, float, int)):
-            raise TypeError(f"{self.name} debe ser numérico (Decimal, float o int)")
+        if value is None:
+            return
+        if not isinstance(value, Decimal):
+            raise TypeError(f"{self.name} debe ser Decimal (para dinero)")
 
 
 class XMLType(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena XML")
         if not value.strip().startswith("<"):
@@ -346,30 +426,46 @@ class XMLType(BaseField):
 
 class IntervalType(BaseField):
     def validate(self, value):
-        from datetime import timedelta
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, timedelta):
             raise TypeError(f"{self.name} debe ser un objeto timedelta")
 
 
 class CidrType(BaseField):
+    def deserialize(self, value):
+        if value is None:
+            return None
+        try:
+            return ipaddress.ip_network(value, strict=False)
+        except Exception:
+            raise ValueError(f"{self.name} no es un bloque CIDR válido")
+
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
-        try:
-            ipaddress.IPv4Network(value, strict=False)
-        except Exception:
-            try:
-                ipaddress.IPv6Network(value, strict=False)
-            except Exception:
-                raise ValueError(f"{self.name} no es un bloque CIDR válido")
+
+
+class MacAddressType(BaseField):
+    def validate(self, value):
+        if value is None and not self.nullable:
+            raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name} debe ser una cadena (MAC)")
+        if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", value):
+            raise ValueError(f"{self.name} no es una MAC válida")
 
 
 class MacAddress8Type(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena (MAC8)")
         if not re.match(r"^([0-9A-Fa-f]{2}:){7}([0-9A-Fa-f]{2})$", value):
@@ -380,6 +476,8 @@ class BitType(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, str):
             raise TypeError(f"{self.name} debe ser una cadena de bits")
         if not re.fullmatch(r"[01]+", value):
@@ -388,20 +486,39 @@ class BitType(BaseField):
 
 class BitVaryingType(BaseField):
     def validate(self, value):
-        BitType.validate(self, value)  # Se comporta igual que BitType
+        BitType.validate(self, value)
 
 
 class RangeType(BaseField):
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
+        if value is None:
+            return
         if not isinstance(value, tuple) or len(value) != 2:
             raise TypeError(f"{self.name} debe ser una tupla (inicio, fin)")
 
 
 class PointType(BaseField):
+    def deserialize(self, value):
+        if value is None:
+            return None
+        if isinstance(value, tuple) and len(value) == 2:
+            x, y = value
+            return (float(x), float(y))
+        if isinstance(value, str):
+            # formato simple "x,y"
+            parts = value.split(",")
+            if len(parts) == 2:
+                return (float(parts[0].strip()), float(parts[1].strip()))
+        raise TypeError(f"{self.name} debe ser tupla (x,y) o cadena 'x,y'")
+
     def validate(self, value):
         if value is None and not self.nullable:
             raise ValueError(f"{self.name} no puede ser nulo")
-        if not (isinstance(value, tuple) and len(value) == 2 and all(isinstance(v, (int, float)) for v in value)):
+        if value is None:
+            return
+        if not (isinstance(value, tuple) and
+                len(value) == 2 and
+                all(isinstance(v, (int, float)) for v in value)):
             raise TypeError(f"{self.name} debe ser una tupla (x, y)")

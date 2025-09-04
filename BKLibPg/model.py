@@ -22,9 +22,11 @@ class Model:
         """
         self._data = {}
         for key, field in self.__class__.fields.items():
-            value = kwargs.get(field.dbname, field.default)
-            field.validate(value)
-            self._data[key] = value
+            # admite clave por dbname o por nombre interno
+            raw = kwargs.get(field.dbname, kwargs.get(key, field.default))
+            value = field.deserialize(raw)          # <-- NUEVO: primero coaccionamos
+            field.validate(value)                   #      luego validamos
+            self._data[key] = value                 #      y guardamos el valor ya convertido
 
     def __getattr__(self, item):
         """
